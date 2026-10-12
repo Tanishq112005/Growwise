@@ -94,17 +94,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware for React frontend communication.
-# Set CORS_ORIGINS (comma-separated) to your deployed frontend URL(s) in production.
-# A wildcard origin together with allow_credentials=True is rejected by browsers, so it is not used.
-_default_origins = "http://localhost:5173,http://127.0.0.1:5173"
-_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", _default_origins).split(",") if o.strip()]
+# Open CORS configuration to allow all incoming traffic.
+# Note: allow_credentials must be False when using wildcards ("*").
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],      # Allows all domains
+    allow_credentials=False,  # Required by browsers when origin is "*"
+    allow_methods=["*"],      # Allows all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],      # Allows all headers
 )
 
 # =====================================================================

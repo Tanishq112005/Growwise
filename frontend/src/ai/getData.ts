@@ -125,6 +125,14 @@ export async function streamChatResponse(
       }),
     });
 
+    if (response.status === 401) {
+      store.finalizeAIMessage(
+        aiMessageId,
+        '🔒 Please **sign in** to chat with the Growwise AI copilot. Your goals, portfolio and personalised answers are waiting for you!'
+      );
+      return;
+    }
+
     if (!response.ok || !response.body) {
       store.finalizeAIMessage(
         aiMessageId,
