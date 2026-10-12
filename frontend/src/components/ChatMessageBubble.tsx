@@ -74,6 +74,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({ message, o
   // -------------------------------------------------------------------
   const cleanText = useMemo(() => {
     return (message.text || '')
+      .replace(/^\s*\{\s*"complete":[\s\S]*?\}\s*/, '')
       .replace(/!function_call:\s*\{[\s\S]*?\}/g, '')
       .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
       .trim();

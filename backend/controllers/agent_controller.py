@@ -10,7 +10,9 @@ from backend.repositories.chat_repository import ChatRepository
 from backend.repositories.user_repository import UserRepository
 
 # Graph nodes whose model-stream tokens are forwarded to the frontend.
-# Includes the research-pipeline nodes (gather emits no tokens; coverage and answer do).
+# NOTE: "coverage" is an internal completeness review node that outputs JSON for the pipeline;
+# it must NEVER stream tokens to the user. Only user-facing answer nodes stream tokens.
+STREAMING_NODES = {"general", "off_topic", "goal", "answer"}
 AGENT_NODES = {"general", "off_topic", "goal", "answer", "coverage"}
 
 
@@ -103,9 +105,14 @@ class AgentController:
                         pipeline_labels = {"gather": "Fetching data…", "coverage": "Checking completeness…"}
                         if chain_name in pipeline_labels:
                             yield f"data: {json.dumps({'tool': pipeline_labels[chain_name], 'args': {}})}\n\n"
-                        if chain_name in AGENT_NODES:
+                        if chain_name in STREAMING_NODES:
                             print(f"[AgentController] >>> Active Agent: {chain_name}")
                             yield f"data: {json.dumps({'agent': chain_name})}\n\n"
+                        # If entering answer node and any tokens were previously yielded, clear bubble
+                        if chain_name == "answer" and tokens_yielded > 0:
+                            full_response_text = ""
+                            tokens_yielded = 0
+                            yield f"data: {json.dumps({'clear': True})}\n\n"
 
                     # 2. Detect Tool call invocation
                     elif ev_type == "on_tool_start":
@@ -128,7 +135,7 @@ class AgentController:
                                 discovered_stocks.append(tool_output)
 
                     # 3. Stream real-time token chunks from the active specialized agent
-                    elif ev_type == "on_chat_model_stream" and node in AGENT_NODES:
+                    elif ev_type == "on_chat_model_stream" and node in STREAMING_NODES:
                         chunk = event.get("data", {}).get("chunk")
                         token_content = getattr(chunk, "content", "") if chunk else ""
                         if token_content and isinstance(token_content, str):
@@ -152,7 +159,8 @@ class AgentController:
                                         full_response_text = str(msg.content)
                                         break
 
-                # Strip any leftover function call tokens before finalizing
+                # Strip any leftover coverage review JSON or function call tokens before finalizing
+                full_response_text = re.sub(r'^\s*\{\s*"complete":[\s\S]*?\}\s*', '', full_response_text).strip()
                 full_response_text = re.sub(r'!function_call:\s*\{[\s\S]*?\}', '', full_response_text).strip()
                 full_response_text = re.sub(r'<tool_call>[\s\S]*?<\/tool_call>', '', full_response_text).strip()
 

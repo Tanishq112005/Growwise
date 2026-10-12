@@ -165,7 +165,12 @@ export async function streamChatResponse(
     // Flush any final frame that arrived without a trailing newline.
     if (!finished && streamBuffer) handleLine(streamBuffer);
 
-    store.finalizeAIMessage(aiMessageId, fullText);
+    const cleanedText = fullText
+      .replace(/^\s*\{\s*"complete":[\s\S]*?\}\s*/, '')
+      .replace(/!function_call:\s*\{[\s\S]*?\}/g, '')
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+      .trim();
+    store.finalizeAIMessage(aiMessageId, cleanedText);
   } catch (error) {
     console.error('[streamChatResponse] Network error connecting to backend:', error);
     store.finalizeAIMessage(
